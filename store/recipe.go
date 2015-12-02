@@ -44,3 +44,17 @@ func GetRecipes() ([]model.Recipe, error) {
 
 	return recipes, err
 }
+
+func WriteRecipe(r model.Recipe) error {
+	idx, err := GetRecipeIndex()
+	if err != nil {
+		return err
+	}
+
+	data, err := json.Marshal(r)
+	idx.SetInternal([]byte(r.Title), data)
+
+	err = idx.Index(r.Title, data)
+
+	return err
+}

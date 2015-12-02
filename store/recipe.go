@@ -2,37 +2,47 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/LeoCavaille/rcpmgr/model"
 	"github.com/blevesearch/bleve"
 )
 
-const RecipeIndexPath = "recipes.bleve"
-
-func CreateRecipeIndex() error {
-	mapping := bleve.NewIndexMapping()
-	_, err := bleve.New(RecipeIndexPath, mapping)
-	return err
+// The RecipeStore is the interface used to interact with our recipes data.
+type RecipeStore interface {
+	// All returns all the recipes available
+	All() ([]model.Recipe, error)
+	// Write adds a new recipe to the store
+	Write(model.Recipe) error
 }
 
-func GetRecipeIndex() (bleve.Index, error) {
-	return bleve.Open(RecipeIndexPath)
+// BleveRecipeStore is a RecipeStore implementation backed up by bleve (no deps, yay!)
+type BleveRecipeStore struct {
+	idx bleve.Index
 }
 
-func GetRecipes() ([]model.Recipe, error) {
-	recipes := []model.Recipe{}
-
-	idx, err := GetRecipeIndex()
-	if err != nil {
-		return nil, err
+func NewBleveRecipeStore(path string) RecipeStore {
+	idx, err := bleve.Open(path)
+	if err == bleve.ErrorIndexPathDoesNotExist {
+		mapping := bleve.NewIndexMapping()
+		idx, err = bleve.New(path, mapping)
 	}
+	if err != nil {
+		panic(fmt.Errorf("could not open/create bleve idx at %s: %v", path, err))
+	}
+
+	return &BleveRecipeStore{idx: idx}
+}
+
+func (brs *BleveRecipeStore) All() ([]model.Recipe, error) {
+	recipes := []model.Recipe{}
 
 	q := bleve.NewMatchAllQuery()
 	src := bleve.NewSearchRequest(q)
-	res, err := idx.Search(src)
+	res, err := brs.idx.Search(src)
 
 	for _, hit := range res.Hits {
-		data, err := idx.GetInternal([]byte(hit.ID))
+		data, err := brs.idx.GetInternal([]byte(hit.ID))
 		if err != nil {
 			panic(err)
 		}
@@ -45,16 +55,11 @@ func GetRecipes() ([]model.Recipe, error) {
 	return recipes, err
 }
 
-func WriteRecipe(r model.Recipe) error {
-	idx, err := GetRecipeIndex()
-	if err != nil {
-		return err
-	}
-
+func (brs *BleveRecipeStore) Write(r model.Recipe) error {
 	data, err := json.Marshal(r)
-	idx.SetInternal([]byte(r.Title), data)
+	brs.idx.SetInternal([]byte(r.Title), data)
 
-	err = idx.Index(r.Title, data)
+	err = brs.idx.Index(r.Title, data)
 
 	return err
 }

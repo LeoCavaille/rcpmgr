@@ -1,7 +1,7 @@
 package model
 
 type Ingredient struct {
-	Quantity int
+	Quantity float64
 	Unit     string
 	Name     string
 	Category string

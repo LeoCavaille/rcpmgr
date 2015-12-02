@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/LeoCavaille/rcpmgr/model"
 	"github.com/blevesearch/bleve"
@@ -56,6 +57,12 @@ func (brs *BleveRecipeStore) All() ([]model.Recipe, error) {
 }
 
 func (brs *BleveRecipeStore) Write(r model.Recipe) error {
+	if len(r.Slug) == 0 {
+		r.Slug = fmt.Sprintf("%s_%s", r.Title, r.Author)
+		// FIXME: this slug SUCKS
+		r.Slug = strings.Replace(r.Slug, " ", "_", -1)
+	}
+
 	data, err := json.Marshal(r)
 	brs.idx.SetInternal([]byte(r.Title), data)
 

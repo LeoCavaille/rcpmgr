@@ -14,6 +14,7 @@ type Instruction struct {
 type Recipe struct {
 	Title        string
 	Author       string
+	Slug         string
 	Category     string
 	Ingredients  []Ingredient
 	Instructions []Instruction
